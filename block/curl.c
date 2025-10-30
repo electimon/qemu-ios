@@ -35,6 +35,8 @@
 #include "qemu/cutils.h"
 #include "trace.h"
 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 // #define DEBUG_VERBOSE
 
 #define PROTOCOLS (CURLPROTO_HTTP | CURLPROTO_HTTPS | \

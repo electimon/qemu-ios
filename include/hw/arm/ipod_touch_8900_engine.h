@@ -8,6 +8,8 @@
 #include "exec/memory.h"
 #include <openssl/aes.h>
 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 typedef struct {
 	unsigned char magic[ 4 ];
 	unsigned char version[ 3 ];
@@ -30,7 +32,7 @@ static uint64_t s5l8900_8900_engine_read(void *opaque, hwaddr offset, unsigned s
 
 static void convert_hex_key_to_bin(char *str, uint8_t *bytes, int maxlen)
 {
-	int slen = strlen(str);
+	/*int slen = strlen(str);*/
 	int bytelen = maxlen;
 	int rpos, wpos = 0;
 
@@ -51,10 +53,16 @@ static void s5l8900_8900_engine_write(void *opaque, hwaddr offset, uint64_t valu
 	unsigned char iv[AES_BLOCK_SIZE];
 	int encrypted;
 	off_t data_begin, data_current, data_end, data_len;
+	(void) data_begin;
+	(void) data_end;
+	(void) encrypted;
+	(void) keybuf;
+	(void) ramdiskiv;
+	(void) ctx;
 
 	if(offset != 0x0) { return; }
 
-	printf("Reading 8900 header with length %d at address 0x%08x\n", sizeof(header8900), value);
+	printf("Reading 8900 header with length %zu at address 0x"TARGET_FMT_plx"\n", sizeof(header8900), value);
 
     AddressSpace *nsas = (AddressSpace *)opaque;
     header8900 *header = malloc(sizeof(header8900));
@@ -69,13 +77,15 @@ static void s5l8900_8900_engine_write(void *opaque, hwaddr offset, uint64_t valu
 		return;
 	}
 
+	// unsure what this is really -iProgram
 	if(header->encrypted == 0x03) { encrypted = 1; }
-	else if( header->encrypted = 0x04 ) { encrypted = 0; }
+	else if( header->encrypted == 0x04 ) { encrypted = 0; }
+	//else if( header->encrypted = 0x04 ) { encrypted = 0; }
 
 	data_begin = sizeof(header8900);
 	data_len = header->sizeOfData;
 
-	printf("Will decrypt 8900 image at address 0x%08x (len: %d bytes)\n", value, data_len);
+	printf("Will decrypt 8900 image at address 0x"TARGET_FMT_plx" (len: %zu bytes)\n", value, data_len);
 
 	// read the data into a buffer
 	uint8_t *inbuf = (uint8_t *)malloc(data_len);
@@ -83,7 +93,7 @@ static void s5l8900_8900_engine_write(void *opaque, hwaddr offset, uint64_t valu
 	uint8_t *outbuf = (uint8_t *)malloc(data_len);
 	uint8_t *intbuf = (uint8_t *)malloc(AES_BLOCK_SIZE);
 
-	convert_hex_key_to_bin(ramdiskKey, aes_key, 16);
+	convert_hex_key_to_bin((char*) ramdiskKey, aes_key, 16);
 	AES_set_decrypt_key(aes_key, 128, &aes_decrypt_key);
 	memset(iv, 0, AES_BLOCK_SIZE);
 

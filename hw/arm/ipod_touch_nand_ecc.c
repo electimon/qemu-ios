@@ -4,6 +4,7 @@ static uint64_t itnand_ecc_read(void *opaque, hwaddr addr, unsigned size)
 {
     ITNandECCState *s = (ITNandECCState *) opaque;
     //fprintf(stderr, "%s: reading from 0x%08x\n", __func__, addr);
+	(void) s;
 
     switch (addr) {
         case NANDECC_STATUS:

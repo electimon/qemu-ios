@@ -1,5 +1,7 @@
 #include "hw/arm/ipod_touch_aes.h"
 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 static uint64_t s5l8900_aes_read(void *opaque, hwaddr offset, unsigned size)
 {
     struct S5L8900AESState *aesop = (struct S5L8900AESState *)opaque;

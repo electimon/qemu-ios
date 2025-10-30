@@ -31,6 +31,7 @@ static void s5l8900_i2c_update(IPodTouchI2CState *s)
     if (s->control & S5L8900_IICCON_IRQPEND)
         level = 0;
 
+    (void) level;
     qemu_irq_raise(s->irq);
 }
 

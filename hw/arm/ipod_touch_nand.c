@@ -29,6 +29,7 @@ void nand_set_buffered_page(ITNandState *s, uint32_t page) {
     if(bank != s->buffered_bank || page != s->buffered_page) {
         // refresh the buffered page
         uint32_t vpn = page * 8 + bank;
+		(void) vpn;
         char filename[200];
         sprintf(filename, "%s/bank%d/%d.page", s->nand_path, bank, page);
         struct stat st = {0};
@@ -164,6 +165,7 @@ static void itnand_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 
                 // flush the page buffer to the disk
                 uint32_t vpn = s->buffered_page * 8 + s->buffered_bank;
+				(void) vpn;
                 //printf("Flushing page %d, bank %d, vpn %d\n", s->buffered_page, s->buffered_bank, vpn);
                 qemu_mutex_lock(&s->lock);
                 qemu_mutex_unlock(&s->lock);

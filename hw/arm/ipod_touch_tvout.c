@@ -45,11 +45,13 @@ static void ipod_touch_tvout_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &ipod_touch_tvout_ops, s, "tvout", 4096);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+	(void) dev;
 }
 
 static void ipod_touch_tvout_class_init(ObjectClass *klass, void *data)
 {
-
+	(void) klass;
+	(void) data;
 }
 
 static const TypeInfo ipod_touch_tvout_type_info = {

@@ -248,6 +248,7 @@ static uint64_t pl192_read(void *opaque, hwaddr offset, unsigned size)
         case PL192_SOFTINTCLEAR:
             fprintf(stderr, "pl192: attempt to read write-only register (offset = "
                      TARGET_FMT_plx ")\n", offset);
+            __attribute__((fallthrough));
         case PL192_VECTADDR:
             return pl192_irq_ack(s);
         /* Workaround for kernel code using PL190 */
@@ -403,9 +404,9 @@ DeviceState *pl192_manual_init(char *mem_name, ...)
 
 static void pl192_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    PL192State *s = PL192(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    __attribute__((unused)) DeviceState *dev = DEVICE(obj);
+    __attribute__((unused)) PL192State *s = PL192(obj);
+    __attribute__((unused)) SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     //memory_region_init_io(&s->iomem, obj, &pl192_ops, s, "pl192", 0x1000);
     //sysbus_init_mmio(sbd, &s->iomem);

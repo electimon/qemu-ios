@@ -1,5 +1,7 @@
 #include "hw/arm/ipod_touch_sdio.h"
 
+void sdio_exec_cmd(IPodTouchSDIOState *s); // no previous prototype for 'sdio_exec_cmd'
+
 void sdio_exec_cmd(IPodTouchSDIOState *s)
 {
     uint32_t addr = (s->arg >> 9) & 0x1ffff;
@@ -11,7 +13,7 @@ void sdio_exec_cmd(IPodTouchSDIOState *s)
 
 static void ipod_touch_sdio_write(void *opaque, hwaddr addr, uint64_t value, unsigned size)
 {
-    fprintf(stderr, "%s: writing 0x%08x to 0x%08x\n", __func__, value, addr);
+    fprintf(stderr, "%s: writing 0x"TARGET_FMT_plx" to 0x"TARGET_FMT_plx"\n", __func__, value, addr);
     
     IPodTouchSDIOState *s = (struct IPodTouchSDIOState *) opaque;
 
@@ -38,7 +40,7 @@ static void ipod_touch_sdio_write(void *opaque, hwaddr addr, uint64_t value, uns
 
 static uint64_t ipod_touch_sdio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    fprintf(stderr, "%s: offset = 0x%08x\n", __func__, addr);
+    fprintf(stderr, "%s: offset = 0x"TARGET_FMT_plx"\n", __func__, addr);
 
     IPodTouchSDIOState *s = (struct IPodTouchSDIOState *) opaque;
 
@@ -82,11 +84,13 @@ static void ipod_touch_sdio_init(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &ipod_touch_sdio_ops, s, TYPE_IPOD_TOUCH_SDIO, 4096);
     sysbus_init_mmio(sbd, &s->iomem);
+	(void) dev;
 }
 
 static void ipod_touch_sdio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+	(void) dc;
 }
 
 static const TypeInfo ipod_touch_sdio_type_info = {

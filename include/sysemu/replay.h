@@ -19,14 +19,14 @@
 #include "block/aio.h"
 
 /* replay clock kinds */
-enum ReplayClockKind {
+enum {
     /* host_clock */
     REPLAY_CLOCK_HOST,
     /* virtual_rt_clock */
     REPLAY_CLOCK_VIRTUAL_RT,
     REPLAY_CLOCK_COUNT
 };
-typedef enum ReplayClockKind ReplayClockKind;
+typedef unsigned int ReplayClockKind;
 
 /* IDs of the checkpoints */
 enum ReplayCheckpoint {

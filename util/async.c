@@ -149,7 +149,10 @@ int aio_bh_poll(AioContext *ctx)
     int ret = 0;
 
     QSLIST_MOVE_ATOMIC(&slice.bh_list, &ctx->bh_list);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
     QSIMPLEQ_INSERT_TAIL(&ctx->bh_slice_list, &slice, next);
+#pragma GCC diagnostic pop
 
     while ((s = QSIMPLEQ_FIRST(&ctx->bh_slice_list))) {
         QEMUBH *bh;

@@ -102,7 +102,7 @@ static uint64_t s5l8900_usb_phys_read(void *opaque, hwaddr addr, unsigned size)
         return s->usb_ophytune;
 
     default:
-        fprintf(stderr, "%s: read invalid location 0x%08x\n", __func__, addr);
+        fprintf(stderr, "%s: read invalid location 0x" TARGET_FMT_plx "\n", __func__, addr);
         return 0;
     }
 
@@ -133,7 +133,7 @@ static void s5l8900_usb_phys_write(void *opaque, hwaddr addr, uint64_t val, unsi
 
     default:
         //hw_error("%s: write invalid location 0x%08x.\n", __func__, offset);
-        fprintf(stderr, "%s: write invalid location 0x%08x\n", __func__, addr);
+        fprintf(stderr, "%s: write invalid location 0x" TARGET_FMT_plx "\n", __func__, addr);
     }
 }
 
@@ -187,7 +187,7 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
 
     // load the bootrom (vrom)
     uint8_t *file_data = NULL;
-    unsigned long fsize;
+    size_t fsize;
     if (g_file_get_contents(nms->bootrom_path, (char **)&file_data, &fsize, NULL)) {
         allocate_ram(sysmem, "vrom", VROM_MEM_BASE, 0x10000);
         address_space_rw(nsas, VROM_MEM_BASE, MEMTXATTRS_UNSPECIFIED, (uint8_t *)file_data, fsize, 1);
@@ -357,14 +357,14 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     // setup VICs
     nms->irq = g_malloc0(sizeof(qemu_irq *) * 2);
-    DeviceState *dev = pl192_manual_init("vic0", qdev_get_gpio_in(DEVICE(nms->cpu), ARM_CPU_IRQ), qdev_get_gpio_in(DEVICE(nms->cpu), ARM_CPU_FIQ), NULL);
+    DeviceState *dev = pl192_manual_init((char*)"vic0", qdev_get_gpio_in(DEVICE(nms->cpu), ARM_CPU_IRQ), qdev_get_gpio_in(DEVICE(nms->cpu), ARM_CPU_FIQ), NULL);
     PL192State *s = PL192(dev);
     nms->vic0 = s;
     memory_region_add_subregion(sysmem, VIC0_MEM_BASE, &nms->vic0->iomem);
     nms->irq[0] = g_malloc0(sizeof(qemu_irq) * 32);
     for (int i = 0; i < 32; i++) { nms->irq[0][i] = qdev_get_gpio_in(dev, i); }
 
-    dev = pl192_manual_init("vic1", NULL);
+    dev = pl192_manual_init((char*)"vic1", NULL);
     s = PL192(dev);
     nms->vic1 = s;
     memory_region_add_subregion(sysmem, VIC1_MEM_BASE, &nms->vic1->iomem);
@@ -502,7 +502,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     // init NAND flash
     dev = qdev_new("itnand");
     ITNandState *nand_state = ITNAND(dev);
-    nand_state->nand_path = &nms->nand_path;
+    nand_state->nand_path = nms->nand_path;
     nms->nand_state = nand_state;
     memory_region_add_subregion(sysmem, NAND_MEM_BASE, &nand_state->iomem);
 
@@ -588,6 +588,7 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     // init the accelerometer
     I2CSlave *accelerometer = i2c_slave_create_simple(i2c_state->bus, "lis302dl", 0x1D);
+	(void) accelerometer;
 
     dev = qdev_new("ipodtouch.i2c");
     i2c_state = IPOD_TOUCH_I2C(dev);
@@ -598,6 +599,7 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     // init the PMU
     I2CSlave *pmu = i2c_slave_create_simple(i2c_state->bus, "pcf50633", 0x73);
+	(void) pmu;
 
     // init the ADM
     dev = qdev_new("ipodtouch.adm");

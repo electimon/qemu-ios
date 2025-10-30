@@ -27,11 +27,13 @@ static void ipod_touch_chipid_init(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &ipod_touch_chipid_ops, s, TYPE_IPOD_TOUCH_CHIPID, 0x10);
     sysbus_init_mmio(sbd, &s->iomem);
+	(void) dev;
 }
 
 static void ipod_touch_chipid_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+	(void) dc;
 }
 
 static const TypeInfo ipod_touch_chipid_type_info = {

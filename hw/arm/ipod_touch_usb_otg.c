@@ -95,8 +95,9 @@ static void synopsys_usb_update_in_ep(synopsys_usb_state *_state, uint8_t _ep)
 	synopsys_usb_ep_state *eps = &_state->in_eps[_ep];
 	synopsys_usb_update_ep(_state, eps);
 
-	if(eps->control & USB_EPCON_ENABLE)
-		;//printf("USB: IN transfer queued on %d.\n", _ep);
+	if(eps->control & USB_EPCON_ENABLE) {
+		//printf("USB: IN transfer queued on %d.\n", _ep);
+	}
 }
 
 static void synopsys_usb_update_out_ep(synopsys_usb_state *_state, uint8_t _ep)
@@ -104,8 +105,9 @@ static void synopsys_usb_update_out_ep(synopsys_usb_state *_state, uint8_t _ep)
 	synopsys_usb_ep_state *eps = &_state->out_eps[_ep];
 	synopsys_usb_update_ep(_state, eps);
 
-	if(eps->control & USB_EPCON_ENABLE)
-		;//printf("USB: OUT transfer queued on %d.\n", _ep);
+	if(eps->control & USB_EPCON_ENABLE) {
+		//printf("USB: OUT transfer queued on %d.\n", _ep);
+	}
 }
 
 static uint32_t synopsys_usb_in_ep_read(synopsys_usb_state *_state, uint8_t _ep, hwaddr _addr)
@@ -270,7 +272,7 @@ static uint64_t synopsys_usb_read(void *opaque, hwaddr _addr, unsigned size)
 		return *((uint32_t*)(&state->fifos[_addr]));
 
 	default:
-		hw_error("USB: Unhandled read address 0x%08x!\n", _addr);
+		hw_error("USB: Unhandled read address 0x"TARGET_FMT_plx"!\n", _addr);
 	}
 
 	return 0;
@@ -497,7 +499,7 @@ static void synopsys_usb_write(void *opaque, hwaddr _addr, uint64_t _val, unsign
 		return;
 
 	default:
-		hw_error("USB: Unhandled write address 0x%08x!\n", _addr);
+		hw_error("USB: Unhandled write address 0x"TARGET_FMT_plx"!\n", _addr);
 	}
 }
 
@@ -576,6 +578,8 @@ static void s5l8900_usb_otg_init1(Object *obj)
     memory_region_init_io(&s->iomem, OBJECT(s), &usb_otg_ops, s, "usb_otg", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+	
+	(void) dev;
 }
 
 // Helper for adding to a machine

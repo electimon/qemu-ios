@@ -86,12 +86,14 @@ this code that are retained.
 | Software IEC/IEEE floating-point ordering relations
 *----------------------------------------------------------------------------*/
 
-typedef enum {
+enum {
     float_relation_less      = -1,
     float_relation_equal     =  0,
     float_relation_greater   =  1,
     float_relation_unordered =  2
-} FloatRelation;
+};
+
+typedef int FloatRelation;
 
 #include "fpu/softfloat-types.h"
 #include "fpu/softfloat-helpers.h"

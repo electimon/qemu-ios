@@ -4,6 +4,7 @@ static void s5l8900_gpio_write(void *opaque, hwaddr addr, uint64_t value, unsign
 {
     //fprintf(stderr, "%s: writing 0x%08x to 0x%08x\n", __func__, value, addr);
     IPodTouchGPIOState *s = (struct IPodTouchGPIOState *) opaque;
+	(void) s;
 
     switch(addr) {
       default:
