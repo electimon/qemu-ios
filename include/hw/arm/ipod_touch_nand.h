@@ -60,7 +60,13 @@ typedef struct ITNandState {
     bool is_writing;
     QemuMutex lock;
     char *nand_path;
+	
+	// iProgramInCpp
+	uint8_t *nand_mmap_data[NAND_NUM_BANKS];
+	uint8_t *nand_mmap_spare[NAND_NUM_BANKS];
 } ITNandState;
+
+void itnand_initialize_nand_files(ITNandState *s);
 
 void nand_set_buffered_page(ITNandState *s, uint32_t page);
 

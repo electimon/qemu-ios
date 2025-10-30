@@ -1,5 +1,20 @@
 #include "hw/arm/ipod_touch_nand.h"
 
+// iProgramInCpp's Config:
+//#define NAND_ALLOW_RW_ACCESS
+//#define NAND_OLD_WAY
+
+#ifdef NAND_OLD_WAY
+#define NAND_PATH "./nand"
+#endif
+
+#define NAND_PAGES_PER_BANK 524288
+
+#ifndef NAND_OLD_WAY
+static void itnand_mmap_read(ITNandState* s, size_t bank, size_t page, void* buf_page, void* buf_spare);
+static void itnand_mmap_write(ITNandState* s, size_t bank, size_t page, const void* buf_page, const void* buf_spare);
+#endif
+
 static int get_bank(ITNandState *s) {
     uint32_t bank_bitmap = (s->fmctrl0 >> 1) & 0xFF;
     for(int bank = 0; bank < NAND_NUM_BANKS; bank++) {
@@ -30,8 +45,10 @@ void nand_set_buffered_page(ITNandState *s, uint32_t page) {
         // refresh the buffered page
         uint32_t vpn = page * 8 + bank;
 		(void) vpn;
+		
+	#ifdef NAND_OLD_WAY
         char filename[200];
-        sprintf(filename, "%s/bank%d/%d.page", s->nand_path, bank, page);
+        sprintf(filename, "%s/bank%d/%d.page", NAND_PATH, bank, page);
         struct stat st = {0};
         if (stat(filename, &st) == -1) {
             // page storage does not exist - initialize an empty buffer
@@ -46,10 +63,16 @@ void nand_set_buffered_page(ITNandState *s, uint32_t page) {
             fread(s->page_spare_buffer, sizeof(char), NAND_BYTES_PER_SPARE, f);
             fclose(f);
         }
+	#endif
+		
 
         s->buffered_page = page;
         s->buffered_bank = bank;
         // printf("Buffered bank: %d, page: %d\n", s->buffered_bank, s->buffered_page);
+		
+	#ifndef NAND_OLD_WAY
+		itnand_mmap_read(s, s->buffered_bank, s->buffered_page, s->page_buffer, s->page_spare_buffer);
+	#endif
     }
 }
 
@@ -166,17 +189,21 @@ static void itnand_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
                 // flush the page buffer to the disk
                 uint32_t vpn = s->buffered_page * 8 + s->buffered_bank;
 				(void) vpn;
-                //printf("Flushing page %d, bank %d, vpn %d\n", s->buffered_page, s->buffered_bank, vpn);
+                printf("Flushing page %d, bank %d, vpn %d\n", s->buffered_page, s->buffered_bank, vpn);
                 qemu_mutex_lock(&s->lock);
                 qemu_mutex_unlock(&s->lock);
                 {
+				#ifdef NAND_OLD_WAY
                     char filename[200];
-                    sprintf(filename, "%s/bank%d/%d_new.page", s->nand_path, s->buffered_bank, s->buffered_page);
+                    sprintf(filename, "%s/bank%d/%d_new.page", NAND_PATH, s->buffered_bank, s->buffered_page);
                     FILE *f = fopen(filename, "wb");
-                    if (f == NULL) { hw_error("Unable to read file!"); }
+                    if (f == NULL) { hw_error("Unable to open file!"); }
                     fwrite(s->page_buffer, sizeof(char), NAND_BYTES_PER_PAGE, f);
                     fwrite(s->page_spare_buffer, sizeof(char), NAND_BYTES_PER_SPARE, f);
                     fclose(f);
+				#else
+					itnand_mmap_write(s, s->buffered_bank, s->buffered_page, s->page_buffer, s->page_spare_buffer);
+				#endif
                 }
             }
             break;
@@ -246,3 +273,132 @@ static void itnand_register_types(void)
 }
 
 type_init(itnand_register_types)
+
+
+// iProgramInCpp added this.  This basically maps the entire nand in memory to be fast to access.
+#ifndef NAND_OLD_WAY
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+static const char* convert_windows_error(DWORD err)
+{
+	static char buf[512]; // static buffer like strerror
+	DWORD size = FormatMessageA(
+		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		err,
+		0,
+		buf,
+		sizeof(buf),
+		NULL
+	);
+	if (size == 0) {
+		snprintf(buf, sizeof(buf), "Unknown error %lu", err);
+	}
+	return buf;
+}
+
+static void* iprogs_mmap_file_into_memory(const char* file_name, size_t size)
+{
+	HANDLE file = CreateFileA(file_name, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (file == INVALID_HANDLE_VALUE) {
+		fprintf(stderr, "could not open nand file %s: %s", file_name, convert_windows_error(GetLastError()));
+		exit(1);
+	}
+	
+#ifdef NAND_ALLOW_RW_ACCESS
+	int permissions = PAGE_READWRITE, access = FILE_MAP_ALL_ACCESS;
+#else
+	int permissions = PAGE_WRITECOPY, access = FILE_MAP_COPY;
+#endif
+	
+	HANDLE mapping = CreateFileMappingA(file, NULL, permissions, (DWORD)(size >> 32), (DWORD) size, NULL);
+	if (!mapping) {
+		CloseHandle(file);
+		fprintf(stderr, "could not create file mapping for nand file %s: %s", file_name, convert_windows_error(GetLastError()));
+		exit(1);
+	}
+	
+	void* map = MapViewOfFile(mapping, access, 0, 0, size);
+	CloseHandle(mapping);
+	CloseHandle(file);
+	
+	if (!map) {
+		fprintf(stderr, "could not map nand file %s into memory: %s", file_name, convert_windows_error(GetLastError()));
+		exit(1);
+	}
+	
+	return map;
+}
+
+#else
+
+static void* iprogs_mmap_file_into_memory(const char* file_name, size_t size)
+{
+	fprintf(stderr, "NYI iprogs_mmap_file_into_memory");
+	exit(1);
+}
+
+#endif // _WIN32
+#endif // NAND_OLD_WAY
+
+void itnand_initialize_nand_files(ITNandState* s)
+{
+#ifdef NAND_OLD_WAY
+	(void) s;
+#else
+	char buffer[512];
+	for (int i = 0; i < NAND_NUM_BANKS; i++)
+	{
+		snprintf(buffer, sizeof buffer, "%s/nand_data_%d.img", s->nand_path, i);
+		s->nand_mmap_data[i] = iprogs_mmap_file_into_memory(buffer, NAND_PAGES_PER_BANK * NAND_BYTES_PER_PAGE);
+	}
+	
+	for (int i = 0; i < NAND_NUM_BANKS; i++)
+	{
+		snprintf(buffer, sizeof buffer, "%s/nand_spare_%d.img", s->nand_path, i);
+		s->nand_mmap_spare[i] = iprogs_mmap_file_into_memory(buffer, NAND_PAGES_PER_BANK * NAND_BYTES_PER_SPARE);
+	}
+#endif
+}
+
+#ifndef NAND_OLD_WAY
+
+static void itnand_mmap_read(ITNandState* s, size_t bank, size_t page, void* buf_page, void* buf_spare)
+{
+	if (bank >= NAND_NUM_BANKS) {
+		fprintf(stderr, "ERROR: trying to read from bank %zu!", bank);
+		return;
+	}
+	
+	if (page >= NAND_PAGES_PER_BANK) {
+		fprintf(stderr, "ERROR: trying to read from page %zu > %zu!", page, (size_t) NAND_PAGES_PER_BANK);
+		return;
+	}
+	
+	qemu_mutex_lock(&s->lock);
+	memcpy(buf_page, s->nand_mmap_data[bank] + page * NAND_BYTES_PER_PAGE, NAND_BYTES_PER_PAGE);
+	memcpy(buf_spare, s->nand_mmap_spare[bank] + page * NAND_BYTES_PER_SPARE, NAND_BYTES_PER_SPARE);
+	qemu_mutex_unlock(&s->lock);
+}
+
+static void itnand_mmap_write(ITNandState* s, size_t bank, size_t page, const void* buf_page, const void* buf_spare)
+{
+	if (bank >= NAND_NUM_BANKS) {
+		fprintf(stderr, "ERROR: trying to write to bank %zu!", bank);
+		return;
+	}
+	
+	if (page >= NAND_PAGES_PER_BANK) {
+		fprintf(stderr, "ERROR: trying to write to page %zu > %zu!", page, (size_t) NAND_PAGES_PER_BANK);
+		return;
+	}
+	
+	qemu_mutex_lock(&s->lock);
+	memcpy(s->nand_mmap_data[bank] + page * NAND_BYTES_PER_PAGE, buf_page, NAND_BYTES_PER_PAGE);
+	memcpy(s->nand_mmap_spare[bank] + page * NAND_BYTES_PER_SPARE, buf_spare, NAND_BYTES_PER_SPARE);
+	qemu_mutex_unlock(&s->lock);
+}
+
+#endif

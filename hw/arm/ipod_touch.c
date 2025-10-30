@@ -505,6 +505,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     nand_state->nand_path = nms->nand_path;
     nms->nand_state = nand_state;
     memory_region_add_subregion(sysmem, NAND_MEM_BASE, &nand_state->iomem);
+	itnand_initialize_nand_files(nand_state);
 
     // init NAND ECC module
     dev = qdev_new("itnand_ecc");
