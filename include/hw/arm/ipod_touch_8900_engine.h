@@ -105,6 +105,10 @@ static void s5l8900_8900_engine_write(void *opaque, hwaddr offset, uint64_t valu
 		data_current = data_current + AES_BLOCK_SIZE;
 	}
 
+	FILE* f = fopen("./8900_image_decrypted", "wb");
+	fwrite(outbuf, 1, data_len, f);
+	fclose(f);
+
 	// write the decrypted output buffer
 	address_space_rw(nsas, value + sizeof(header8900), MEMTXATTRS_UNSPECIFIED, (uint8_t *)outbuf, data_len, 1);
 

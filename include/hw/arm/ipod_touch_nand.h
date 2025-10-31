@@ -64,6 +64,7 @@ typedef struct ITNandState {
 	// iProgramInCpp
 	uint8_t *nand_mmap_data[NAND_NUM_BANKS];
 	uint8_t *nand_mmap_spare[NAND_NUM_BANKS];
+	int nand_delay;
 } ITNandState;
 
 void itnand_initialize_nand_files(ITNandState *s);
