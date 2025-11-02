@@ -62,8 +62,10 @@ typedef struct ITNandState {
     char *nand_path;
 	
 	// iProgramInCpp
-	uint8_t *nand_mmap_data[NAND_NUM_BANKS];
-	uint8_t *nand_mmap_spare[NAND_NUM_BANKS];
+	//uint8_t *nand_mmap_data[NAND_NUM_BANKS];
+	//uint8_t *nand_mmap_spare[NAND_NUM_BANKS];
+	uint8_t* nand_mmap_data;
+	uint8_t* nand_mmap_spare;
 	int nand_delay;
 } ITNandState;
 

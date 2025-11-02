@@ -326,6 +326,7 @@ static void* iprogs_mmap_file_into_memory(const char* file_name, size_t size)
 
 void itnand_initialize_nand_files(ITNandState* s)
 {
+	/*
 	char buffer[512];
 	for (int i = 0; i < NAND_NUM_BANKS; i++)
 	{
@@ -338,6 +339,13 @@ void itnand_initialize_nand_files(ITNandState* s)
 		snprintf(buffer, sizeof buffer, "%s/nand_spare_%d.img", s->nand_path, i);
 		s->nand_mmap_spare[i] = iprogs_mmap_file_into_memory(buffer, NAND_PAGES_PER_BANK * NAND_BYTES_PER_SPARE);
 	}
+	*/
+	
+	const uint64_t totalBytesPages = (uint64_t)NAND_PAGES_PER_BANK * NAND_NUM_BANKS * NAND_BYTES_PER_PAGE;
+	const uint64_t totalBytesSpares = (uint64_t)NAND_PAGES_PER_BANK * NAND_NUM_BANKS * NAND_BYTES_PER_SPARE;
+	
+	s->nand_mmap_data = iprogs_mmap_file_into_memory(s->nand_path, totalBytesPages + totalBytesSpares);
+	s->nand_mmap_spare = s->nand_mmap_data + totalBytesPages;
 }
 
 static void itnand_mmap_read(ITNandState* s, size_t bank, size_t page, void* buf_page, void* buf_spare)
@@ -352,13 +360,13 @@ static void itnand_mmap_read(ITNandState* s, size_t bank, size_t page, void* buf
 		return;
 	}
 	
-	memcpy(buf_page, s->nand_mmap_data[bank] + page * NAND_BYTES_PER_PAGE, NAND_BYTES_PER_PAGE);
-	memcpy(buf_spare, s->nand_mmap_spare[bank] + page * NAND_BYTES_PER_SPARE, NAND_BYTES_PER_SPARE);
+	uint64_t vpn = (uint64_t)page * 8 + bank;
+	memcpy(buf_page, s->nand_mmap_data + vpn * NAND_BYTES_PER_PAGE, NAND_BYTES_PER_PAGE);
+	memcpy(buf_spare, s->nand_mmap_spare + vpn * NAND_BYTES_PER_SPARE, NAND_BYTES_PER_SPARE);
 }
 
 static void itnand_mmap_write(ITNandState* s, size_t bank, size_t page, const void* buf_page, const void* buf_spare)
 {
-	return;
 	if (bank >= NAND_NUM_BANKS) {
 		fprintf(stderr, "ERROR: trying to write to bank %zu!", bank);
 		return;
@@ -369,6 +377,7 @@ static void itnand_mmap_write(ITNandState* s, size_t bank, size_t page, const vo
 		return;
 	}
 	
-	memcpy(s->nand_mmap_data[bank] + page * NAND_BYTES_PER_PAGE, buf_page, NAND_BYTES_PER_PAGE);
-	memcpy(s->nand_mmap_spare[bank] + page * NAND_BYTES_PER_SPARE, buf_spare, NAND_BYTES_PER_SPARE);
+	uint64_t vpn = (uint64_t)page * 8 + bank;
+	memcpy(s->nand_mmap_data + vpn * NAND_BYTES_PER_PAGE, buf_page, NAND_BYTES_PER_PAGE);
+	memcpy(s->nand_mmap_spare + vpn * NAND_BYTES_PER_SPARE, buf_spare, NAND_BYTES_PER_SPARE);
 }
