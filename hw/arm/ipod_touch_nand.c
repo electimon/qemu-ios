@@ -118,9 +118,9 @@ static uint64_t itnand_read(void *opaque, hwaddr addr, unsigned size)
 static void itnand_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     ITNandState *s = (ITNandState *) opaque;
-    if(s->reading_multiple_pages) {
-        //fprintf(stderr, "%s: writing 0x%08llx to 0x"TARGET_PLX_FMT"\n", __func__, val, addr);
-    }
+    //if(s->reading_multiple_pages) {
+        //fprintf(stderr, "%s: writing 0x%08llx to 0x%08llx\n", __func__, val, addr);
+    //}
     
 
     switch(addr) {
@@ -152,7 +152,7 @@ static void itnand_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
             break;
         case NAND_FMFIFO:
             if(!s->is_writing) {
-                // printf("%s: NAND_FMFIFO writing while not in writing mode!\n", __func__);
+                fprintf(stderr, "%s: NAND_FMFIFO writing while not in writing mode!\n", __func__);
                 return;
             }
 
