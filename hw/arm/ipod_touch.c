@@ -277,7 +277,7 @@ static void ipod_touch_set_nand_path(Object *obj, const char *value, Error **err
 
 static void ipod_touch_instance_init(Object *obj)
 {
-	object_property_add_str(obj, "bootrom", ipod_touch_get_bootrom_path, ipod_touch_set_bootrom_path);
+    object_property_add_str(obj, "bootrom", ipod_touch_get_bootrom_path, ipod_touch_set_bootrom_path);
     object_property_set_description(obj, "bootrom", "Path to the S5L8900 bootrom binary");
 
     object_property_add_str(obj, "iboot", ipod_touch_get_iboot_path, ipod_touch_set_iboot_path);
@@ -342,8 +342,8 @@ static void ipod_touch_key_event(void *opaque, int keycode)
 
 static void ipod_touch_machine_init(MachineState *machine)
 {
-	IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(machine);
-	MemoryRegion *sysmem;
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(machine);
+    MemoryRegion *sysmem;
     AddressSpace *nsas;
     ARMCPU *cpu;
 
@@ -505,7 +505,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     nand_state->nand_path = nms->nand_path;
     nms->nand_state = nand_state;
     memory_region_add_subregion(sysmem, NAND_MEM_BASE, &nand_state->iomem);
-	itnand_initialize_nand_files(nand_state);
+    itnand_initialize_nand_files(nand_state);
 
     // init NAND ECC module
     dev = qdev_new("itnand_ecc");
@@ -589,7 +589,7 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     // init the accelerometer
     I2CSlave *accelerometer = i2c_slave_create_simple(i2c_state->bus, "lis302dl", 0x1D);
-	(void) accelerometer;
+    (void) accelerometer;
 
     dev = qdev_new("ipodtouch.i2c");
     i2c_state = IPOD_TOUCH_I2C(dev);
@@ -600,7 +600,7 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     // init the PMU
     I2CSlave *pmu = i2c_slave_create_simple(i2c_state->bus, "pcf50633", 0x73);
-	(void) pmu;
+    (void) pmu;
 
     // init the ADM
     dev = qdev_new("ipodtouch.adm");

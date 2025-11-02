@@ -37,10 +37,10 @@ void nand_set_buffered_page(ITNandState *s, uint32_t page) {
     if(bank != s->buffered_bank || page != s->buffered_page) {
         // refresh the buffered page
         uint32_t vpn = page * 8 + bank;
-		(void) vpn;
-		
-		itnand_mmap_read(s, bank,page, s->page_buffer, s->page_spare_buffer);
-		
+        (void) vpn;
+        
+        itnand_mmap_read(s, bank,page, s->page_buffer, s->page_spare_buffer);
+        
         s->buffered_page = page;
         s->buffered_bank = bank;
         // printf("Buffered bank: %d, page: %d\n", s->buffered_bank, s->buffered_page);
@@ -99,14 +99,14 @@ static uint64_t itnand_read(void *opaque, hwaddr addr, unsigned size)
             }
 
         case NAND_FMCSTAT: {
-			int flags = (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 12);
-			
-			flags |= 1 << 1; // ?
-			flags |= 1 << 2; // FMCSTAT_ADDRESS_DONE
-			flags |= 1 << 3; // FMCSTAT_TRANSFER_DONE
-			
+            int flags = (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 12);
+            
+            flags |= 1 << 1; // ?
+            flags |= 1 << 2; // FMCSTAT_ADDRESS_DONE
+            flags |= 1 << 3; // FMCSTAT_TRANSFER_DONE
+            
             return flags; // this indicates that everything is ready, including our eight banks
-		}
+        }
         case NAND_RSCTRL:
             return s->rsctrl;
         default:
@@ -166,12 +166,12 @@ static void itnand_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 
                 // flush the page buffer to the disk
                 uint32_t vpn = s->buffered_page * 8 + s->buffered_bank;
-				(void) vpn;
+                (void) vpn;
                 printf("Flushing page %d, bank %d, vpn %d\n", s->buffered_page, s->buffered_bank, vpn);
                 qemu_mutex_lock(&s->lock);
                 qemu_mutex_unlock(&s->lock);
                 {
-					itnand_mmap_write(s, s->buffered_bank, s->buffered_page, s->page_buffer, s->page_spare_buffer);
+                    itnand_mmap_write(s, s->buffered_bank, s->buffered_page, s->page_buffer, s->page_spare_buffer);
                 }
             }
             break;
@@ -185,17 +185,17 @@ static void itnand_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 /*
 static uint64_t itnand_read2(void *opaque, hwaddr addr, unsigned size) {
     ITNandState *s = (ITNandState *) opaque;
-	qemu_mutex_lock(&s->lock);
-	uint64_t rv = itnand_read(opaque, addr, size);
-	qemu_mutex_unlock(&s->lock);
-	return rv;
+    qemu_mutex_lock(&s->lock);
+    uint64_t rv = itnand_read(opaque, addr, size);
+    qemu_mutex_unlock(&s->lock);
+    return rv;
 }
 
 static void itnand_write2(void *opaque, hwaddr addr, uint64_t val, unsigned size) {
     ITNandState *s = (ITNandState *) opaque;
-	qemu_mutex_lock(&s->lock);
-	itnand_write(opaque, addr, val, size);
-	qemu_mutex_unlock(&s->lock);
+    qemu_mutex_lock(&s->lock);
+    itnand_write(opaque, addr, val, size);
+    qemu_mutex_unlock(&s->lock);
 }
 */
 static const MemoryRegionOps nand_ops = {
@@ -265,119 +265,119 @@ type_init(itnand_register_types)
 
 static const char* convert_windows_error(DWORD err)
 {
-	static char buf[512]; // static buffer like strerror
-	DWORD size = FormatMessageA(
-		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		err,
-		0,
-		buf,
-		sizeof(buf),
-		NULL
-	);
-	if (size == 0) {
-		snprintf(buf, sizeof(buf), "Unknown error %lu", err);
-	}
-	return buf;
+    static char buf[512]; // static buffer like strerror
+    DWORD size = FormatMessageA(
+        FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        err,
+        0,
+        buf,
+        sizeof(buf),
+        NULL
+    );
+    if (size == 0) {
+        snprintf(buf, sizeof(buf), "Unknown error %lu", err);
+    }
+    return buf;
 }
 
 static void* iprogs_mmap_file_into_memory(const char* file_name, size_t size)
 {
-	HANDLE file = CreateFileA(file_name, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (file == INVALID_HANDLE_VALUE) {
-		fprintf(stderr, "could not open nand file %s: %s", file_name, convert_windows_error(GetLastError()));
-		exit(1);
-	}
-	
+    HANDLE file = CreateFileA(file_name, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "could not open nand file %s: %s", file_name, convert_windows_error(GetLastError()));
+        exit(1);
+    }
+    
 #ifdef NAND_ALLOW_RW_ACCESS
-	int permissions = PAGE_READWRITE, access = FILE_MAP_ALL_ACCESS;
+    int permissions = PAGE_READWRITE, access = FILE_MAP_ALL_ACCESS;
 #else
-	int permissions = PAGE_WRITECOPY, access = FILE_MAP_COPY;
+    int permissions = PAGE_WRITECOPY, access = FILE_MAP_COPY;
 #endif
-	
-	HANDLE mapping = CreateFileMappingA(file, NULL, permissions, (DWORD)(size >> 32), (DWORD) size, NULL);
-	if (!mapping) {
-		CloseHandle(file);
-		fprintf(stderr, "could not create file mapping for nand file %s: %s", file_name, convert_windows_error(GetLastError()));
-		exit(1);
-	}
-	
-	void* map = MapViewOfFile(mapping, access, 0, 0, size);
-	CloseHandle(mapping);
-	CloseHandle(file);
-	
-	if (!map) {
-		fprintf(stderr, "could not map nand file %s into memory: %s", file_name, convert_windows_error(GetLastError()));
-		exit(1);
-	}
-	
-	return map;
+    
+    HANDLE mapping = CreateFileMappingA(file, NULL, permissions, (DWORD)(size >> 32), (DWORD) size, NULL);
+    if (!mapping) {
+        CloseHandle(file);
+        fprintf(stderr, "could not create file mapping for nand file %s: %s", file_name, convert_windows_error(GetLastError()));
+        exit(1);
+    }
+    
+    void* map = MapViewOfFile(mapping, access, 0, 0, size);
+    CloseHandle(mapping);
+    CloseHandle(file);
+    
+    if (!map) {
+        fprintf(stderr, "could not map nand file %s into memory: %s", file_name, convert_windows_error(GetLastError()));
+        exit(1);
+    }
+    
+    return map;
 }
 
 #else
 
 static void* iprogs_mmap_file_into_memory(const char* file_name, size_t size)
 {
-	fprintf(stderr, "NYI iprogs_mmap_file_into_memory");
-	exit(1);
+    fprintf(stderr, "NYI iprogs_mmap_file_into_memory");
+    exit(1);
 }
 
 #endif // _WIN32
 
 void itnand_initialize_nand_files(ITNandState* s)
 {
-	/*
-	char buffer[512];
-	for (int i = 0; i < NAND_NUM_BANKS; i++)
-	{
-		snprintf(buffer, sizeof buffer, "%s/nand_data_%d.img", s->nand_path, i);
-		s->nand_mmap_data[i] = iprogs_mmap_file_into_memory(buffer, NAND_PAGES_PER_BANK * NAND_BYTES_PER_PAGE);
-	}
-	
-	for (int i = 0; i < NAND_NUM_BANKS; i++)
-	{
-		snprintf(buffer, sizeof buffer, "%s/nand_spare_%d.img", s->nand_path, i);
-		s->nand_mmap_spare[i] = iprogs_mmap_file_into_memory(buffer, NAND_PAGES_PER_BANK * NAND_BYTES_PER_SPARE);
-	}
-	*/
-	
-	const uint64_t totalBytesPages = (uint64_t)NAND_PAGES_PER_BANK * NAND_NUM_BANKS * NAND_BYTES_PER_PAGE;
-	const uint64_t totalBytesSpares = (uint64_t)NAND_PAGES_PER_BANK * NAND_NUM_BANKS * NAND_BYTES_PER_SPARE;
-	
-	s->nand_mmap_data = iprogs_mmap_file_into_memory(s->nand_path, totalBytesPages + totalBytesSpares);
-	s->nand_mmap_spare = s->nand_mmap_data + totalBytesPages;
+    /*
+    char buffer[512];
+    for (int i = 0; i < NAND_NUM_BANKS; i++)
+    {
+        snprintf(buffer, sizeof buffer, "%s/nand_data_%d.img", s->nand_path, i);
+        s->nand_mmap_data[i] = iprogs_mmap_file_into_memory(buffer, NAND_PAGES_PER_BANK * NAND_BYTES_PER_PAGE);
+    }
+    
+    for (int i = 0; i < NAND_NUM_BANKS; i++)
+    {
+        snprintf(buffer, sizeof buffer, "%s/nand_spare_%d.img", s->nand_path, i);
+        s->nand_mmap_spare[i] = iprogs_mmap_file_into_memory(buffer, NAND_PAGES_PER_BANK * NAND_BYTES_PER_SPARE);
+    }
+    */
+    
+    const uint64_t totalBytesPages = (uint64_t)NAND_PAGES_PER_BANK * NAND_NUM_BANKS * NAND_BYTES_PER_PAGE;
+    const uint64_t totalBytesSpares = (uint64_t)NAND_PAGES_PER_BANK * NAND_NUM_BANKS * NAND_BYTES_PER_SPARE;
+    
+    s->nand_mmap_data = iprogs_mmap_file_into_memory(s->nand_path, totalBytesPages + totalBytesSpares);
+    s->nand_mmap_spare = s->nand_mmap_data + totalBytesPages;
 }
 
 static void itnand_mmap_read(ITNandState* s, size_t bank, size_t page, void* buf_page, void* buf_spare)
 {
-	if (bank >= NAND_NUM_BANKS) {
-		fprintf(stderr, "ERROR: trying to read from bank %zu!", bank);
-		return;
-	}
-	
-	if (page >= NAND_PAGES_PER_BANK) {
-		fprintf(stderr, "ERROR: trying to read from page %zu > %zu!", page, (size_t) NAND_PAGES_PER_BANK);
-		return;
-	}
-	
-	uint64_t vpn = (uint64_t)page * 8 + bank;
-	memcpy(buf_page, s->nand_mmap_data + vpn * NAND_BYTES_PER_PAGE, NAND_BYTES_PER_PAGE);
-	memcpy(buf_spare, s->nand_mmap_spare + vpn * NAND_BYTES_PER_SPARE, NAND_BYTES_PER_SPARE);
+    if (bank >= NAND_NUM_BANKS) {
+        fprintf(stderr, "ERROR: trying to read from bank %zu!", bank);
+        return;
+    }
+    
+    if (page >= NAND_PAGES_PER_BANK) {
+        fprintf(stderr, "ERROR: trying to read from page %zu > %zu!", page, (size_t) NAND_PAGES_PER_BANK);
+        return;
+    }
+    
+    uint64_t vpn = (uint64_t)page * 8 + bank;
+    memcpy(buf_page, s->nand_mmap_data + vpn * NAND_BYTES_PER_PAGE, NAND_BYTES_PER_PAGE);
+    memcpy(buf_spare, s->nand_mmap_spare + vpn * NAND_BYTES_PER_SPARE, NAND_BYTES_PER_SPARE);
 }
 
 static void itnand_mmap_write(ITNandState* s, size_t bank, size_t page, const void* buf_page, const void* buf_spare)
 {
-	if (bank >= NAND_NUM_BANKS) {
-		fprintf(stderr, "ERROR: trying to write to bank %zu!", bank);
-		return;
-	}
-	
-	if (page >= NAND_PAGES_PER_BANK) {
-		fprintf(stderr, "ERROR: trying to write to page %zu > %zu!", page, (size_t) NAND_PAGES_PER_BANK);
-		return;
-	}
-	
-	uint64_t vpn = (uint64_t)page * 8 + bank;
-	memcpy(s->nand_mmap_data + vpn * NAND_BYTES_PER_PAGE, buf_page, NAND_BYTES_PER_PAGE);
-	memcpy(s->nand_mmap_spare + vpn * NAND_BYTES_PER_SPARE, buf_spare, NAND_BYTES_PER_SPARE);
+    if (bank >= NAND_NUM_BANKS) {
+        fprintf(stderr, "ERROR: trying to write to bank %zu!", bank);
+        return;
+    }
+    
+    if (page >= NAND_PAGES_PER_BANK) {
+        fprintf(stderr, "ERROR: trying to write to page %zu > %zu!", page, (size_t) NAND_PAGES_PER_BANK);
+        return;
+    }
+    
+    uint64_t vpn = (uint64_t)page * 8 + bank;
+    memcpy(s->nand_mmap_data + vpn * NAND_BYTES_PER_PAGE, buf_page, NAND_BYTES_PER_PAGE);
+    memcpy(s->nand_mmap_spare + vpn * NAND_BYTES_PER_SPARE, buf_spare, NAND_BYTES_PER_SPARE);
 }

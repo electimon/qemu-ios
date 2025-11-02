@@ -44,9 +44,9 @@ typedef struct ITNandState {
     uint32_t fmaddr1;
     uint32_t fmanum;
     uint32_t fmdnum;
-	uint32_t rsctrl;
-	uint32_t cmd;
-	uint8_t reading_spare;
+    uint32_t rsctrl;
+    uint32_t cmd;
+    uint8_t reading_spare;
     qemu_irq irq;
 
     uint8_t *page_buffer;
@@ -60,13 +60,13 @@ typedef struct ITNandState {
     bool is_writing;
     QemuMutex lock;
     char *nand_path;
-	
-	// iProgramInCpp
-	//uint8_t *nand_mmap_data[NAND_NUM_BANKS];
-	//uint8_t *nand_mmap_spare[NAND_NUM_BANKS];
-	uint8_t* nand_mmap_data;
-	uint8_t* nand_mmap_spare;
-	int nand_delay;
+    
+    // iProgramInCpp
+    //uint8_t *nand_mmap_data[NAND_NUM_BANKS];
+    //uint8_t *nand_mmap_spare[NAND_NUM_BANKS];
+    uint8_t* nand_mmap_data;
+    uint8_t* nand_mmap_spare;
+    int nand_delay;
 } ITNandState;
 
 void itnand_initialize_nand_files(ITNandState *s);
