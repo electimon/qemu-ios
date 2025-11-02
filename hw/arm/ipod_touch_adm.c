@@ -64,6 +64,8 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                 uint32_t *buf = malloc(80);
                 address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x24, MEMTXATTRS_UNSPECIFIED, buf, 80);
                 int cmd = *buf;
+				free(buf);
+				buf = NULL;
                 // printf("Setting command: 0x%08x\n", cmd);
                 // for(int i = 0; i < 20; i++) {
                 //     printf("0x%08x ", buf[i]);
@@ -77,6 +79,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                         address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x28, MEMTXATTRS_UNSPECIFIED, buf, 2);
                         num_pages = *(uint16_t*)buf;
                         num_pages = ( (((num_pages) >> 8) & 0x00FF) | (((num_pages) << 8) & 0xFF00) ); // swap endianness
+						free(buf);
                         //printf("Reading %d pages at once, ", num_pages);
 
                         buf = malloc(4);
@@ -86,6 +89,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                                ((page<<8)&0xff0000) | // move byte 1 to byte 2
                                ((page>>8)&0xff00) | // move byte 2 to byte 1
                                ((page<<24)&0xff000000); // byte 0 to byte 3
+						free(buf);
                         //printf("starting with page %d\n", page);
 
                         uint16_t ops = num_pages / 8;
@@ -104,6 +108,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                             uint8_t *sbuf = malloc(0xC);
                             sbuf[10] = 0xFF;
                             address_space_rw(&s->downstream_as, s->data3_sec_addr + i * 0xC, MEMTXATTRS_UNSPECIFIED, sbuf, 0xC, 1);
+							free(sbuf);
                         }
                         
                         break;
@@ -114,10 +119,14 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                         address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x28, MEMTXATTRS_UNSPECIFIED, buf, 2);
                         num_pages = *(uint16_t*)buf;
                         num_pages = ( (((num_pages) >> 8) & 0x00FF) | (((num_pages) << 8) & 0xFF00) ); // swap endianness
+						free(buf);
+						
                         if(num_pages == 1) {
                             // TODO this can probably be refactored to re-use the logic to read multiple pages!
+							buf = malloc(1);
                             address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x44, MEMTXATTRS_UNSPECIFIED, buf, 1);
                             bank = *(uint8_t*)buf;
+							free(buf);
 
                             buf = malloc(4);
                             address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x244, MEMTXATTRS_UNSPECIFIED, buf, 4);
@@ -126,6 +135,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                                    ((page<<8)&0xff0000) | // move byte 1 to byte 2
                                    ((page>>8)&0xff00) | // move byte 2 to byte 1
                                    ((page<<24)&0xff000000); // byte 0 to byte 3
+							free(buf);
                             //printf("Reading single page: %d (bank: %d)\n", page, bank);
 
                             // set the bank, page, and operation.
@@ -151,10 +161,12 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                                        ((page<<8)&0xff0000) | // move byte 1 to byte 2
                                        ((page>>8)&0xff00) | // move byte 2 to byte 1
                                        ((page<<24)&0xff000000); // byte 0 to byte 3
+								free(buf);
 
                                 buf = malloc(1);
                                 address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x44 + i, MEMTXATTRS_UNSPECIFIED, buf, 1);
                                 bank = *(uint8_t*)buf;
+								free(buf);
                                 // printf("Page: %d, bank: %d\n", page, bank);
 
                                 s->nand_state->pages_to_read[i] = page;
@@ -168,6 +180,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                                 uint8_t *sbuf = malloc(0xC);
                                 sbuf[10] = 0xFF;
                                 address_space_rw(&s->downstream_as, s->data3_sec_addr + i * 0xC, MEMTXATTRS_UNSPECIFIED, sbuf, 0xC, 1);
+								free(sbuf);
                             }
                         }
                         break;
@@ -176,6 +189,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                         buf = malloc(1);
                         address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x44, MEMTXATTRS_UNSPECIFIED, buf, 1);
                         bank = *(uint8_t*)buf;
+						free(buf);
 
                         buf = malloc(4);
                         address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x244, MEMTXATTRS_UNSPECIFIED, buf, 4);
@@ -184,6 +198,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                                ((page<<8)&0xff0000) | // move byte 1 to byte 2
                                ((page>>8)&0xff00) | // move byte 2 to byte 1
                                ((page<<24)&0xff000000); // byte 0 to byte 3
+						free(buf);
 
                         // set the bank, page, and operation.
                         //printf("Activating bank for writing: %d, page: %d\n", bank, page);
