@@ -66,7 +66,7 @@ typedef struct ITNandState {
     //uint8_t *nand_mmap_spare[NAND_NUM_BANKS];
     uint8_t* nand_mmap_data;
     uint8_t* nand_mmap_spare;
-    int nand_delay;
+    uint32_t ignore_write_count; // for writing, it seems to write 4x32 after each page written
 } ITNandState;
 
 void itnand_initialize_nand_files(ITNandState *s);

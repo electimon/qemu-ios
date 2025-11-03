@@ -1,7 +1,7 @@
 #include "hw/arm/ipod_touch_nand.h"
 
 // iProgramInCpp's Config:
-//#define NAND_ALLOW_RW_ACCESS
+#define NAND_ALLOW_RW_ACCESS
 
 #define NAND_PAGES_PER_BANK 524288
 
@@ -152,25 +152,64 @@ static void itnand_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
             break;
         case NAND_FMFIFO:
             if(!s->is_writing) {
-                fprintf(stderr, "%s: NAND_FMFIFO writing while not in writing mode!\n", __func__);
+                fprintf(stderr, "%s: NAND_FMFIFO writing while not in writing mode, writing %08x!\n", __func__, (uint32_t) val);
                 return;
             }
-
-            //printf("Setting offset %d: %d\n", s->fmdnum, (NAND_BYTES_PER_PAGE - s->fmdnum) / 4);
-            ((uint32_t *)s->page_buffer)[(NAND_BYTES_PER_PAGE - s->fmdnum) / 4] = val;
-            s->fmdnum -= 4;
-
-            if(s->fmdnum == 0) {
-                // we're done!
-                s->is_writing = false;
-
-                // flush the page buffer to the disk
-                uint32_t vpn = s->buffered_page * 8 + s->buffered_bank;
-                (void) vpn;
-                printf("Flushing page %d, bank %d, vpn %d\n", s->buffered_page, s->buffered_bank, vpn);
-                qemu_mutex_lock(&s->lock);
-                qemu_mutex_unlock(&s->lock);
+            
+            if (s->ignore_write_count) {
+                s->ignore_write_count--;
+                //fprintf(stderr, "%s: Delaying write for this value %08x, because end of page reached. %u left, fmdnum = %u.\n", __func__, (uint32_t) val, s->ignore_write_count, s->fmdnum);
+                break;
+            }
+            
+            if (s->reading_multiple_pages)
+            {
+                // which bank are we at?
+                if (s->fmdnum % 0x800 == 0)
                 {
+                    s->cur_bank_reading += 1;
+                    set_bank(s, s->banks_to_read[s->cur_bank_reading]);
+                }
+
+                // compute the offset in the page
+                uint32_t page_offset = s->fmdnum % 0x800;
+                if (page_offset == 0) { page_offset = 0x800; }
+                
+                nand_set_buffered_page(s, s->pages_to_read[s->cur_bank_reading]);
+                
+                ((uint32_t *)s->page_buffer)[(NAND_BYTES_PER_PAGE - page_offset) / 4] = val;    
+                
+                s->fmdnum -= 4;
+                if (s->fmdnum % 0x800 == 0)
+                {
+                    s->ignore_write_count = 4;
+                    
+                    //uint32_t vpn = s->buffered_page * 8 + s->buffered_bank;
+                    //fprintf(stderr, "Flushing page %d, bank %d, vpn %d (multi-page write, %u bytes left)\n", s->buffered_page, s->buffered_bank, vpn, s->fmdnum);
+                    
+                    itnand_mmap_write(s, s->buffered_bank, s->buffered_page, s->page_buffer, s->page_spare_buffer);
+                }
+                
+                if (s->fmdnum == 0)
+                {
+                    // we're done!
+                    s->is_writing = false;
+                }
+            }
+            else
+            {
+                ((uint32_t *)s->page_buffer)[(NAND_BYTES_PER_PAGE - s->fmdnum) / 4] = val;
+                s->fmdnum -= 4;
+
+                if (s->fmdnum == 0)
+                {
+                    // we're done!
+                    s->is_writing = false;
+                    s->ignore_write_count = 4;
+
+                    //uint32_t vpn = s->buffered_page * 8 + s->buffered_bank;
+                    //fprintf(stderr, "Flushing page %d, bank %d, vpn %d\n", s->buffered_page, s->buffered_bank, vpn);
+                    
                     itnand_mmap_write(s, s->buffered_bank, s->buffered_page, s->page_buffer, s->page_spare_buffer);
                 }
             }

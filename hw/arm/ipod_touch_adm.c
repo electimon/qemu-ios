@@ -3,6 +3,19 @@
 #include "hw/arm/ipod_touch_nand.h"
 #include "qapi/error.h"
 
+static uint16_t byte_swap_16(uint16_t v)
+{
+    return (v << 8) | (v >> 8);
+}
+
+static uint32_t byte_swap_32(uint32_t v)
+{
+    return (((v >> 24) & 0xFF) |
+            ((v << 8) & 0xFF0000) |
+            ((v >> 8) & 0x00FF00) |
+            ((v << 24) & 0xFF000000));
+}
+
 static void set_bank(ITNandState *s, uint8_t activate_bank) {
     for(int bank = 0; bank < 8; bank++) {
         // clear bit, toggle if it is active
@@ -31,11 +44,25 @@ static uint64_t ipod_touch_adm_read(void *opaque, hwaddr offset, unsigned size)
     return 0;
 }
 
+// After setting up nand_state->pages_to_read and nand_state->banks_to_read, call this to initiate the I/O
+static void itadm_setup_multiple_page_io(IPodTouchADMState* s, uint16_t page_count)
+{
+    s->nand_state->reading_multiple_pages = true;
+    s->nand_state->fmdnum = 0x800 * page_count;
+    s->nand_state->cur_bank_reading = -1;
+    
+    uint8_t sbuf[12] = {};
+    sbuf[10] = 0xFF;
+    
+    for (int i = 0; i < page_count; i++)
+        address_space_rw(&s->downstream_as, s->data3_sec_addr + i * 0xC, MEMTXATTRS_UNSPECIFIED, sbuf, 0xC, 1);
+}
+
 static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, unsigned size)
 {
     IPodTouchADMState *s = (IPodTouchADMState *)opaque;
 
-    fprintf(stderr, "s5l8900_adm_write: offset = 0x%08x, val = 0x%08x\n", (unsigned)offset, (unsigned)value);
+    //fprintf(stderr, "s5l8900_adm_write: offset = 0x%08x, val = 0x%08x\n", (unsigned)offset, (unsigned)value);
 
     switch(offset) {
         case ADM_CTRL:
@@ -61,6 +88,14 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
             {
                 uint32_t cmd;
                 
+                uint32_t buffer[20];
+                address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x24, MEMTXATTRS_UNSPECIFIED, buffer, 80);
+                fprintf(stderr, "DUMPING BUFFER: ");
+                for(int i = 0; i < 20; i++) {
+                    fprintf(stderr, "0x%08x ", buffer[i]);
+                }
+                fprintf(stderr, "\n");
+                
                 uintptr_t my_addr = s->data2_sec_addr + 0x1104;
                 address_space_read(&s->downstream_as, my_addr + 0x24, MEMTXATTRS_UNSPECIFIED, &cmd, 4);
 
@@ -73,17 +108,12 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                         uint16_t page_count;
                         uint32_t page;
                         
-                        s->nand_state->reading_multiple_pages = true;
-                        
                         address_space_read(&s->downstream_as, my_addr + 0x28, MEMTXATTRS_UNSPECIFIED, &page_count, 2);
                         address_space_read(&s->downstream_as, my_addr + 0x244, MEMTXATTRS_UNSPECIFIED, &page, 4);
                         
-                        page_count = (page_count >> 8) | (page_count << 8);
-                        page = (((page >> 24) & 0xFF) |
-                                ((page << 8) & 0xFF0000) |
-                                ((page >> 8) & 0x00FF00) |
-                                ((page << 24) & 0xFF000000));
-                        fprintf(stderr, "starting with page %u\n", page);
+                        page_count = byte_swap_16(page_count);
+                        page = byte_swap_32(page);
+                        //fprintf(stderr, "starting with page %u\n", page);
                         
                         uint16_t ops = page_count / 8;
                         for (int op = 0; op < ops; op++)
@@ -96,15 +126,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                             page++;
                         }
                         
-                        s->nand_state->fmdnum = 0x800 * page_count;
-                        s->nand_state->cur_bank_reading = -1;
-                        
-                        uint8_t sbuf[12] = {};
-                        sbuf[10] = 0xFF;
-                        
-                        for (int i = 0; i < page_count; i++)
-                            address_space_rw(&s->downstream_as, s->data3_sec_addr + i * 0xC, MEMTXATTRS_UNSPECIFIED, sbuf, 0xC, 1);
-                        
+                        itadm_setup_multiple_page_io(s, page_count);
                         break;
                     }
                     case 0x300:
@@ -126,10 +148,7 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                             address_space_read(&s->downstream_as, my_addr + 0x44, MEMTXATTRS_UNSPECIFIED, &bank, 1);
                             address_space_read(&s->downstream_as, my_addr + 0x244, MEMTXATTRS_UNSPECIFIED, &page, 4);
                             
-                            page = (((page >> 24) & 0xFF) |
-                                    ((page << 8) & 0xFF0000) |
-                                    ((page >> 8) & 0x00FF00) |
-                                    ((page << 24) & 0xFF000000));
+                            page = byte_swap_32(page);
                             
                             // set the bank, page, and operation.
                             set_bank(s->nand_state, bank);
@@ -152,10 +171,8 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                                 uint8_t bank;
                                 uint32_t page;
                                 address_space_read(&s->downstream_as, my_addr + 0x244 + 4 * i, MEMTXATTRS_UNSPECIFIED, &page, 4);
-                                page = (((page >> 24) & 0xFF) |
-                                        ((page << 8) & 0xFF0000) |
-                                        ((page >> 8) & 0x00FF00) |
-                                        ((page << 24) & 0xFF000000));
+                                
+                                page = byte_swap_32(page);
                                 
                                 address_space_read(&s->downstream_as, my_addr + 0x44 + i, MEMTXATTRS_UNSPECIFIED, &bank, 1);
                                 
@@ -163,16 +180,38 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                                 s->nand_state->banks_to_read[i] = bank;
                             }
                             
-                            s->nand_state->fmdnum = 0x800 * page_count;
-                            s->nand_state->cur_bank_reading = -1;
-                            
-                            uint8_t sbuf[12] = {};
-                            sbuf[10] = 0xFF;
-                            
-                            for (int i = 0; i < page_count; i++)
-                                address_space_rw(&s->downstream_as, s->data3_sec_addr + i * 0xC, MEMTXATTRS_UNSPECIFIED, sbuf, 0xC, 1);
+                            itadm_setup_multiple_page_io(s, page_count);
                         }
                         
+                        break;
+                    }
+                    case 0x400:
+                    {
+                        // Write Multiple Pages (contiguous)
+                        uint16_t page_count;
+                        uint32_t page;
+                        
+                        address_space_read(&s->downstream_as, my_addr + 0x28, MEMTXATTRS_UNSPECIFIED, &page_count, 2);
+                        address_space_read(&s->downstream_as, my_addr + 0x244, MEMTXATTRS_UNSPECIFIED, &page, 4);
+                        
+                        page_count = byte_swap_16(page_count);
+                        page = byte_swap_32(page);
+                        fprintf(stderr, "write starting with page %u\n", page);
+                        
+                        uint16_t ops = page_count / 8;
+                        for (int op = 0; op < ops; op++)
+                        {
+                            for (int i = 0; i < 8; i++)
+                            {
+                                s->nand_state->pages_to_read[op * 8 + i] = page;
+                                s->nand_state->banks_to_read[op * 8 + i] = i;
+                            }
+                            page++;
+                        }
+                        
+                        s->nand_state->is_writing = true;
+                        s->nand_state->ignore_write_count = 0;
+                        itadm_setup_multiple_page_io(s, page_count);
                         break;
                     }
                     case 0x500:
@@ -197,16 +236,16 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                         address_space_read(&s->downstream_as, my_addr + 0x44, MEMTXATTRS_UNSPECIFIED, &bank, 1);
                         address_space_read(&s->downstream_as, my_addr + 0x244, MEMTXATTRS_UNSPECIFIED, &page, 4);
                         
-                        page = (((page >> 24) & 0xFF) |
-                                ((page << 8) & 0xFF0000) |
-                                ((page >> 8) & 0x00FF00) |
-                                ((page << 24) & 0xFF000000));
+                        page = byte_swap_32(page);
                         
                         // set the bank, page, and operation.
                         set_bank(s->nand_state, bank);
                         nand_set_buffered_page(s->nand_state, page);
                         s->nand_state->fmdnum = NAND_BYTES_PER_PAGE;
                         s->nand_state->is_writing = true;
+                        s->nand_state->ignore_write_count = 0;
+                        
+                        fprintf(stderr, "ADM commencing single page write to page %u, bank %u, VPN %u\n", page, bank, page * 8 + bank);
                         break;
                     }
                     default:
