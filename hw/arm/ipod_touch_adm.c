@@ -90,16 +90,16 @@ static void ipod_touch_adm_write(void *opaque, hwaddr offset, uint64_t value, un
                 
                 uint32_t buffer[20];
                 address_space_read(&s->downstream_as, s->data2_sec_addr + 0x1104 + 0x24, MEMTXATTRS_UNSPECIFIED, buffer, 80);
-                fprintf(stderr, "DUMPING BUFFER: ");
-                for(int i = 0; i < 20; i++) {
-                    fprintf(stderr, "0x%08x ", buffer[i]);
-                }
-                fprintf(stderr, "\n");
+                //fprintf(stderr, "DUMPING BUFFER: ");
+                //for(int i = 0; i < 20; i++) {
+                //    fprintf(stderr, "0x%08x ", buffer[i]);
+                //}
+                //fprintf(stderr, "\n");
                 
                 uintptr_t my_addr = s->data2_sec_addr + 0x1104;
                 address_space_read(&s->downstream_as, my_addr + 0x24, MEMTXATTRS_UNSPECIFIED, &cmd, 4);
 
-                fprintf(stderr, "ADM processing command %d\n", cmd);
+                //fprintf(stderr, "ADM processing command %d\n", cmd);
                 switch (cmd)
                 {
                     case 0x200:

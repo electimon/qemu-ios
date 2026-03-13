@@ -38,6 +38,17 @@ static void allocate_ram(MemoryRegion *top, const char *name, uint32_t addr, uin
         memory_region_add_subregion(top, addr, sec);
 }
 
+static void allocate_ram_mirrored(MemoryRegion *top, const char *name, const char *alias_name, uint32_t addr, uint32_t alias_addr, uint32_t size)
+{
+        MemoryRegion *sec = g_new(MemoryRegion, 1);
+        memory_region_init_ram(sec, NULL, name, size, &error_fatal);
+        memory_region_add_subregion(top, addr, sec);
+		
+		MemoryRegion *alias = g_new(MemoryRegion, 1);
+		memory_region_init_alias(alias, NULL, alias_name, sec, 0, size);
+		memory_region_add_subregion(top, alias_addr, alias);
+}
+
 static uint32_t align_64k_high(uint32_t addr)
 {
     return (addr + 0xffffull) & ~0xffffull;
@@ -181,9 +192,13 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     DriveInfo *dinfo;
 
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x10000);
+	
+	(void) &allocate_ram_mirrored;
 
     // allocate UART ram
-    allocate_ram(sysmem, "ram", RAM_MEM_BASE, 0x8000000);
+	// it's mirrored between 0x00000000 and 0x08000000
+    //allocate_ram(sysmem, "ram", RAM_MEM_BASE, 0x8000000);
+    allocate_ram_mirrored(sysmem, "ram", "ram.alias", 0x0000000, 0x8000000, 0x8000000);
 
     // load the bootrom (vrom)
     uint8_t *file_data = NULL;
@@ -224,7 +239,7 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     allocate_ram(sysmem, "mpvd", MPVD_MEM_BASE, 0x70000);
     allocate_ram(sysmem, "h264bpd", H264BPD_MEM_BASE, 4096);
 
-    allocate_ram(sysmem, "framebuffer", FRAMEBUFFER_MEM_BASE, align_64k_high(4 * 320 * 480));
+    //allocate_ram(sysmem, "framebuffer", FRAMEBUFFER_MEM_BASE, align_64k_high(4 * 320 * 480));
 
     // setup 1MB NOR
     dinfo = drive_get(IF_PFLASH, 0, 0);
@@ -460,7 +475,9 @@ static void ipod_touch_machine_init(MachineState *machine)
     sysbus_create_simple("s5l8900spi", SPI0_MEM_BASE, s5l8900_get_irq(nms, S5L8900_SPI0_IRQ));
 
     set_spi_base(1);
-    sysbus_create_simple("s5l8900spi", SPI1_MEM_BASE, s5l8900_get_irq(nms, S5L8900_SPI1_IRQ));
+    dev = sysbus_create_simple("s5l8900spi", SPI1_MEM_BASE, s5l8900_get_irq(nms, S5L8900_SPI1_IRQ));
+	S5L8900SPIState *spi1_state = S5L8900SPI(dev);
+	nms->spi1_state = spi1_state;
 
     set_spi_base(2);
     dev = sysbus_create_simple("s5l8900spi", SPI2_MEM_BASE, s5l8900_get_irq(nms, S5L8900_SPI2_IRQ));

@@ -50,6 +50,8 @@ typedef struct IPodTouchLCDState
     uint32_t w2_display_resolution_info;
     uint32_t w2_display_depth_info;
     uint32_t w2_qlen;
+	
+	uint32_t selected_window;
 
     QEMUTimer *refresh_timer;
 } IPodTouchLCDState;

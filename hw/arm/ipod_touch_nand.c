@@ -1,7 +1,7 @@
 #include "hw/arm/ipod_touch_nand.h"
 
 // iProgramInCpp's Config:
-#define NAND_ALLOW_RW_ACCESS
+//#define NAND_ALLOW_RW_ACCESS
 
 #define NAND_PAGES_PER_BANK 524288
 

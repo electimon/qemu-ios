@@ -129,7 +129,7 @@ static void apple_spi_run(S5L8900SPIState *s)
 static uint64_t s5l8900_spi_read(void *opaque, hwaddr addr, unsigned size)
 {
     S5L8900SPIState *s = S5L8900SPI(opaque);
-    //fprintf(stderr, "%s (base %d): read from location 0x%08x\n", __func__, s->base, addr);
+    //fprintf(stderr, "%s (base %d): read from location 0x%08llx\n", __func__, s->base, addr);
 
     uint32_t r;
     bool run = false;
@@ -175,7 +175,7 @@ static uint64_t s5l8900_spi_read(void *opaque, hwaddr addr, unsigned size)
 static void s5l8900_spi_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
     S5L8900SPIState *s = S5L8900SPI(opaque);
-    //fprintf(stderr, "%s (base %d): writing 0x%08x to 0x%08x\n", __func__, s->base, data, addr);
+    //fprintf(stderr, "%s (base %d): writing 0x%08llx to 0x%08llx\n", __func__, s->base, data, addr);
 
     uint32_t r = data;
     uint32_t *mmio = &REG(s, addr);
@@ -191,7 +191,7 @@ static void s5l8900_spi_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         if (r & R_CTRL_RX_RESET) {
             fifo8_reset(&s->rx_fifo);
         }
-        if (r & R_CTRL_RUN && !fifo8_is_empty(&s->tx_fifo)) {
+        if (r & R_CTRL_RUN /* && !fifo8_is_empty(&s->tx_fifo) */) {
             run = true;
         }
         break;
@@ -278,8 +278,12 @@ static void s5l8900_spi_realize(DeviceState *dev, struct Error **errp)
         case 0:
             break;
         case 1:
-            ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_LCD_PANEL);
+		{
+            DeviceState *dev = ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_LCD_PANEL);
+			IPodTouchLCDPanelState *lt = IPOD_TOUCH_LCD_PANEL(dev);
+			s->lt = lt;
             break;
+		}
         case 2:
         {
             DeviceState *dev = ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_MULTITOUCH);

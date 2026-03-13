@@ -117,6 +117,7 @@ static void s5l8900_lcd_write(void *opaque, hwaddr addr, uint64_t val, unsigned 
             s->w1_display_depth_info = val;
             break;
         case 0x60:
+			fprintf(stderr, "[UPDATE]: Frame Buffer Base (W1) is now at %08llx\n", val);
             s->w1_framebuffer_base = val;
             break;
         case 0x64:
@@ -125,6 +126,12 @@ static void s5l8900_lcd_write(void *opaque, hwaddr addr, uint64_t val, unsigned 
         case 0x68:
             s->w1_qlen = val;
             break;
+		case 0x6C: // OpeniBoot seems to use this to select a window
+			if (val != 0) {
+				fprintf(stderr, "[LCD] firmware wrote %08llx to LCD+0x6C\n", val);
+			}
+			s->selected_window = 0;
+			break;
 
         case 0x70:
             s->w2_hspan = val;
@@ -133,6 +140,7 @@ static void s5l8900_lcd_write(void *opaque, hwaddr addr, uint64_t val, unsigned 
             s->w2_display_depth_info = val;
             break;
         case 0x78:
+			fprintf(stderr, "[UPDATE]: Frame Buffer Base (W2) is now at %08llx\n", val);
             s->w2_framebuffer_base = val;
             break;
         case 0x7c:
@@ -141,6 +149,14 @@ static void s5l8900_lcd_write(void *opaque, hwaddr addr, uint64_t val, unsigned 
         case 0x80:
             s->w2_qlen = val;
             break;
+		case 0x84: // OpeniBoot seems to use this to select a window
+			if (val != 0) {
+				fprintf(stderr, "[LCD] firmware wrote %08llx to LCD+0x84\n", val);
+			}
+			s->selected_window = 1;
+			break;
+		
+		// note: there are supposed to be 5 windows but we're both lazy
     }
 }
 
@@ -165,6 +181,16 @@ static void draw_line32_32(void *opaque, uint8_t *d, const uint8_t *s, int width
         s += 4;
         d += 4;
     } while (-- width != 0);
+}
+
+static uint32_t get_window_framebuffer_base(IPodTouchLCDState* state) {
+	switch (state->selected_window) {
+		case 0:
+		default:
+			return state->w1_framebuffer_base;
+		case 1:
+			return state->w2_framebuffer_base;
+	}
 }
 
 static void lcd_refresh(void *opaque)
@@ -194,7 +220,13 @@ static void lcd_refresh(void *opaque)
     linesize = surface_stride(surface);
 
     if(lcd->invalidate) {
-        framebuffer_update_memory_section(&lcd->fbsection, lcd->sysmem, lcd->w1_framebuffer_base, height, 4 * width);
+        framebuffer_update_memory_section(
+			&lcd->fbsection,
+			lcd->sysmem,
+			get_window_framebuffer_base(lcd),
+			height,
+			4 * width
+		);
     }
 
     framebuffer_update_display(surface, &lcd->fbsection,
