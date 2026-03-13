@@ -5,7 +5,7 @@
 
 static uint64_t s5l8900_lcd_read(void *opaque, hwaddr addr, unsigned size)
 {
-    // fprintf(stderr, "%s: read from location 0x%08x\n", __func__, addr);
+    // fprintf(stderr, "%s: read from location 0x%08llx\n", __func__, addr);
 
     IPodTouchLCDState *s = (IPodTouchLCDState *)opaque;
     switch(addr)
@@ -68,7 +68,7 @@ static uint64_t s5l8900_lcd_read(void *opaque, hwaddr addr, unsigned size)
 static void s5l8900_lcd_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     IPodTouchLCDState *s = (IPodTouchLCDState *)opaque;
-    // fprintf(stderr, "%s: writing 0x%08x to 0x%08x\n", __func__, val, addr);
+    // fprintf(stderr, "%s: writing 0x%08llx to 0x%08llx\n", __func__, val, addr);
 
     switch(addr) {
         case 0x4:
@@ -140,7 +140,7 @@ static void s5l8900_lcd_write(void *opaque, hwaddr addr, uint64_t val, unsigned 
             s->w2_display_depth_info = val;
             break;
         case 0x78:
-			fprintf(stderr, "[UPDATE]: Frame Buffer Base (W2) is now at %08llx\n", val);
+			fprintf(stderr, "[UPDATE]: Frame Buffer Base (W2) is now at %08llx.\n", val);
             s->w2_framebuffer_base = val;
             break;
         case 0x7c:
@@ -183,6 +183,39 @@ static void draw_line32_32(void *opaque, uint8_t *d, const uint8_t *s, int width
     } while (-- width != 0);
 }
 
+static void draw_line16_32(void *opaque, uint8_t *d, const uint8_t *s, int width, int deststep)
+{
+    uint8_t r, g, b;
+
+    do {
+        //v = lduw_le_p((void *) s);
+        //printf("V: %d\n", *s);
+		union {
+			struct {
+				int b : 5;
+				int g : 6;
+				int r : 5;
+			} __attribute__((packed));
+			uint16_t val;
+			struct {
+				uint8_t lo;
+				uint8_t hi;
+			};
+		} x;
+		x.lo = s[0];
+		x.hi = s[1];
+		
+        b = (x.b << 3) | (x.b >> 2);
+        g = (x.g << 2) | (x.g >> 3);
+        r = (x.r << 3) | (x.r >> 2);
+        
+		((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+		
+        s += 2;
+        d += 4;
+    } while (-- width != 0);
+}
+
 static uint32_t get_window_framebuffer_base(IPodTouchLCDState* state) {
 	switch (state->selected_window) {
 		case 0:
@@ -191,6 +224,23 @@ static uint32_t get_window_framebuffer_base(IPodTouchLCDState* state) {
 		case 1:
 			return state->w2_framebuffer_base;
 	}
+}
+
+static uint32_t get_display_depth_info(IPodTouchLCDState* state)
+{
+	switch (state->selected_window) {
+		case 0:
+		default:
+			return state->w1_display_depth_info;
+		case 1:
+			return state->w2_display_depth_info;
+	}
+}
+
+static bool is_16_bpp_framebuffer(IPodTouchLCDState* state)
+{
+	// OpeniBoot says RGB565 leads to wordSetting = 1, otherwise wordSetting = 0
+	return (get_display_depth_info(state) >> 16) != 0;
 }
 
 static void lcd_refresh(void *opaque)
@@ -204,11 +254,17 @@ static void lcd_refresh(void *opaque)
     int height, first, last;
     int width, linesize;
 
-    if (!lcd || !lcd->con || !surface_bits_per_pixel(surface))
+    if (!lcd || !lcd->con || !surface_bits_per_pixel(surface)) {
         return;
-
-    dest_width = 4;
-    draw_line = draw_line32_32;
+	}
+	
+	const int pixelWidth = is_16_bpp_framebuffer(lcd) ? 2 : 4;
+    dest_width = pixelWidth;
+	
+	if (pixelWidth == 4)
+		draw_line = draw_line32_32;
+	else
+		draw_line = draw_line16_32;
 
     /* Resolution */
     first = last = 0;
@@ -216,7 +272,7 @@ static void lcd_refresh(void *opaque)
     height = 480;
     lcd->invalidate = 1;
 
-    src_width =  4 * width;
+    src_width = pixelWidth * width;
     linesize = surface_stride(surface);
 
     if(lcd->invalidate) {
@@ -225,7 +281,7 @@ static void lcd_refresh(void *opaque)
 			lcd->sysmem,
 			get_window_framebuffer_base(lcd),
 			height,
-			4 * width
+			pixelWidth * width
 		);
     }
 
