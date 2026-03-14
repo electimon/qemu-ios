@@ -101,6 +101,7 @@ static uint64_t itnand_read(void *opaque, hwaddr addr, unsigned size)
         case NAND_FMCSTAT: {
             int flags = (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 12);
             
+            flags |= 1 << 0; // OpeniBoot wants this
             flags |= 1 << 1; // ?
             flags |= 1 << 2; // FMCSTAT_ADDRESS_DONE
             flags |= 1 << 3; // FMCSTAT_TRANSFER_DONE
