@@ -1,5 +1,7 @@
 #include "hw/arm/ipod_touch_timer.h"
 
+// TODO: Timer 1 is the piezo timer!
+
 static void s5l8900_st_update(IPodTouchTimerState *s)
 {
     s->freq_out = 1000000000 / 100; 

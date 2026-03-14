@@ -221,6 +221,18 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
         allocate_ram(sysmem, "iboot", IBOOT_BASE, 0x400000);
         address_space_rw(nsas, IBOOT_BASE, MEMTXATTRS_UNSPECIFIED, (uint8_t *)file_data, fsize, 1);
      }
+	
+	// load OpeniBoot bootable ELF if needed
+	file_data = NULL;
+	if (*nms->oib_elf_path && g_file_get_contents(nms->oib_elf_path, (char **)&file_data, &fsize, NULL)) {
+		fprintf(stderr, "Using an OIB ELF path: %s\n", nms->oib_elf_path);
+		
+		// this overlaps with regular RAM so shouldn't need to allocate new memory.
+		address_space_rw(nsas, OIB_ELF_BASE, MEMTXATTRS_UNSPECIFIED, (uint8_t *)file_data, fsize, 1);
+	}
+	else {
+		fprintf(stderr, "NOT using an OIB ELF path\n");
+	}
 
     // // load LLB
     // file_data = NULL;
@@ -290,6 +302,18 @@ static void ipod_touch_set_nand_path(Object *obj, const char *value, Error **err
     g_strlcpy(nms->nand_path, value, sizeof(nms->nand_path));
 }
 
+static char *ipod_touch_get_oib_elf_path(Object *obj, Error **errp)
+{
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
+    return g_strdup(nms->oib_elf_path);
+}
+
+static void ipod_touch_set_oib_elf_path(Object *obj, const char *value, Error **errp)
+{
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
+    g_strlcpy(nms->oib_elf_path, value, sizeof(nms->oib_elf_path));
+}
+
 static void ipod_touch_instance_init(Object *obj)
 {
     object_property_add_str(obj, "bootrom", ipod_touch_get_bootrom_path, ipod_touch_set_bootrom_path);
@@ -300,6 +324,9 @@ static void ipod_touch_instance_init(Object *obj)
 
     object_property_add_str(obj, "nand", ipod_touch_get_nand_path, ipod_touch_set_nand_path);
     object_property_set_description(obj, "nand", "Path to the NAND files");
+
+    object_property_add_str(obj, "oib-elf", ipod_touch_get_oib_elf_path, ipod_touch_set_oib_elf_path);
+    object_property_set_description(obj, "oib-elf", "Path to an ELF file to boot via OpeniBoot, stored at 0x09000000 (OPTIONAL)");
 }
 
 static inline qemu_irq s5l8900_get_irq(IPodTouchMachineState *s, int n)

@@ -123,6 +123,8 @@ const int S5L8900_GPIO_IRQS[7] = { S5L8900_GPIO_G0_IRQ, S5L8900_GPIO_G1_IRQ, S5L
 
 #define TVOUT_WORKAROUND_MEM_BASE 0x8a25960  // workaround for TV Out, to make sure that it can be correctly deallocated without reverse engineering the entire TVOut protocol
 
+#define OIB_ELF_BASE 0x09000000
+
 typedef struct {
     MachineClass parent;
 } IPodTouchMachineClass;
@@ -171,6 +173,7 @@ typedef struct {
 	char bootrom_path[1024];
 	char iboot_path[1024];
 	char nand_path[1024];
+	char oib_elf_path[1024];
 } IPodTouchMachineState;
 
 #endif
