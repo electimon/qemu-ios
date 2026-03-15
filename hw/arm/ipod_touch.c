@@ -229,6 +229,10 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
 		
 		// this overlaps with regular RAM so shouldn't need to allocate new memory.
 		address_space_rw(nsas, OIB_ELF_BASE, MEMTXATTRS_UNSPECIFIED, (uint8_t *)file_data, fsize, 1);
+		
+		// also add a signature of 4 bytes
+		uint32_t boron_sig = 0x4E524241; // "ABRN"
+		address_space_rw(nsas, OIB_ELF_BASE - 4, MEMTXATTRS_UNSPECIFIED, (uint8_t*) &boron_sig, sizeof(boron_sig), 1);
 	}
 	else {
 		fprintf(stderr, "NOT using an OIB ELF path\n");
