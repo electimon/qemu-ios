@@ -8940,6 +8940,7 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
                 CPSRWriteType write_type)
 {
     uint32_t changed_daif;
+	uint32_t old_r13 = env->regs[13];
     bool rebuild_hflags = (write_type != CPSRWriteRaw) &&
         (mask & (CPSR_M | CPSR_E | CPSR_IL));
 
@@ -9050,13 +9051,21 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
                           aarch32_mode_name(env->uncached_cpsr),
                           aarch32_mode_name(val));
         } else {
-            qemu_log_mask(CPU_LOG_INT, "%s %s to %s PC 0x%" PRIx32 "\n",
+			uint32_t old_uncached_cpsr = env->uncached_cpsr;
+			uint32_t old_val = val;
+            switch_mode(env, val & CPSR_M);
+            qemu_log_mask(CPU_LOG_INT, "%s %s to %s PC 0x%" PRIx32 "  SP_%s %x  SP_%s %x\n",
                           write_type == CPSRWriteExceptionReturn ?
                           "Exception return from AArch32" :
                           "AArch32 mode switch from",
-                          aarch32_mode_name(env->uncached_cpsr),
-                          aarch32_mode_name(val), env->regs[15]);
-            switch_mode(env, val & CPSR_M);
+                          aarch32_mode_name(old_uncached_cpsr),
+                          aarch32_mode_name(old_val),
+						  env->regs[15],
+                          aarch32_mode_name(old_uncached_cpsr),
+						  old_r13,
+                          aarch32_mode_name(old_val),
+						  env->regs[13]
+			);
         }
     }
     mask &= ~CACHED_CPSR_BITS;
@@ -9543,6 +9552,8 @@ static void take_aarch32_exception(CPUARMState *env, int new_mode,
                                    uint32_t newpc)
 {
     int new_el;
+	
+	int old_cpsr = env->uncached_cpsr & CPSR_M;
 
     /* Change the CPU state so as to actually take the exception. */
     switch_mode(env, new_mode);
@@ -9613,6 +9624,13 @@ static void take_aarch32_exception(CPUARMState *env, int new_mode,
     }
     env->regs[15] = newpc;
     arm_rebuild_hflags(env);
+	
+	qemu_log_mask(CPU_LOG_INT, "...the exception has an LR of 0x%x\n",
+				  (uint32_t) env->regs[14]);
+	qemu_log_mask(CPU_LOG_INT, "...and an old SP of 0x%x\n",
+				  (uint32_t) env->banked_r13[bank_number(old_cpsr)]);
+	qemu_log_mask(CPU_LOG_INT, "...and a new SP of 0x%x\n",
+				  (uint32_t) env->banked_r13[bank_number(new_mode)]);
 }
 
 static void arm_cpu_do_interrupt_aarch32_hyp(CPUState *cs)

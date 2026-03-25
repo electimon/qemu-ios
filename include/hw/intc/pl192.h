@@ -67,6 +67,8 @@ struct PL192State {
     PL192State *daisy_callback;
     uint8_t  daisy_input;
 
+	int padding[32]; // makes it more stable?? idk how
+
     /* Parent interrupts */
     qemu_irq irq;
     qemu_irq fiq;

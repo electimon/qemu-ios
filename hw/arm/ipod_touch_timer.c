@@ -29,6 +29,7 @@ static void s5l8900_st_tick(void *opaque)
 
         /* schedule next interrupt */
         if(!(s->status & TIMER_STATE_MANUALUPDATE)) {
+			//fprintf(stderr, "%s: scheduling next intr\n", __func__);
             s5l8900_st_set_timer(s);
         }
     } else {
@@ -40,7 +41,7 @@ static void s5l8900_st_tick(void *opaque)
 
 static void s5l8900_timer1_write(void *opaque, hwaddr addr, uint64_t value, unsigned size)
 {
-    //fprintf(stderr, "%s: writing 0x%08x to 0x%08x\n", __func__, value, addr);
+    //fprintf(stderr, "%s: writing 0x%08llx to 0x%08llx\n", __func__, value, addr);
     IPodTouchTimerState *s = (struct IPodTouchTimerState *) opaque;
 
     switch(addr){
@@ -60,9 +61,12 @@ static void s5l8900_timer1_write(void *opaque, hwaddr addr, uint64_t value, unsi
             if (value & TIMER_STATE_START) {
                 s->base_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
                 s5l8900_st_update(s);
+				//fprintf(stderr, "%s: scheduling next intr, because we just started\n", __func__);
                 s5l8900_st_set_timer(s);
             } else if (value == TIMER_STATE_STOP) {
+				//fprintf(stderr, "%s: stopping timer\n", __func__);
                 timer_del(s->st_timer);
+				qemu_irq_lower(s->irq);     //does the real hardware do this?? I sure hope so!
             }
             s->status = value;
             break;
@@ -79,7 +83,7 @@ static void s5l8900_timer1_write(void *opaque, hwaddr addr, uint64_t value, unsi
 
 static uint64_t s5l8900_timer1_read(void *opaque, hwaddr addr, unsigned size)
 {
-    //fprintf(stderr, "%s: read from location 0x%08x\n", __func__, addr);
+    //fprintf(stderr, "%s: read from location 0x%08llx\n", __func__, addr);
     IPodTouchTimerState *s = (struct IPodTouchTimerState *) opaque;
     uint64_t elapsed_ns, ticks;
 
