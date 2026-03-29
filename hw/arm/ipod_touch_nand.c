@@ -358,8 +358,12 @@ static void* iprogs_mmap_file_into_memory(const char* file_name, size_t size)
 
 static void* iprogs_mmap_file_into_memory(const char* file_name, size_t size)
 {
-    fprintf(stderr, "NYI iprogs_mmap_file_into_memory");
-    exit(1);
+   const char *memblock;
+   int fd;
+   fd = open(file_name, O_RDWR);
+   memblock = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+   if (memblock == MAP_FAILED) exit(1);
+   return memblock;
 }
 
 #endif // _WIN32
